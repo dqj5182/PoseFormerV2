@@ -14,6 +14,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import cv2
 import copy
+from os import listdir
 
 from lib.hrnet.lib.utils.utilitys import plot_keypoint, PreProcess, write, load_json
 from lib.hrnet.lib.config import cfg, update_config
@@ -84,27 +85,45 @@ def model_load(config):
     return model
 
 
+import re
+def atoi(text):
+    return int(text) if text.isdigit() else text
+def natural_keys(text):
+    return [atoi(c) for c in re.split(r'(\d+)', text)]
+
+
 def gen_video_kpts(video, det_dim=416, num_peroson=1, gen_output=False):
     # Updating configuration
     args = parse_args()
     reset_config(args)
 
-    cap = cv2.VideoCapture(video)
+    if '.mp4' in video:
+        cap = cv2.VideoCapture(video)
 
     # Loading detector and pose model, initialize sort for track
     human_model = yolo_model(inp_dim=det_dim)
     pose_model = model_load(cfg)
     people_sort = Sort(min_hits=0)
 
-    video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if '.mp4' in video:
+        video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    else:
+        video_frames = [f for f in listdir(video)]
+        video_frames.sort(key=natural_keys)
+        video_length = len(video_frames)
 
     kpts_result = []
     scores_result = []
     for ii in tqdm(range(video_length)):
-        ret, frame = cap.read()
+        if '.mp4' in video:
+            ret, frame = cap.read()
 
-        if not ret:
-            continue
+            if not ret:
+                continue
+        else:
+            frame = cv2.imread(osp.join(video, video_frames[ii]))
+            frame = cv2.resize(frame, (224, 224))
+            # cv2.imwrite('debug.png', frame)
 
         bboxs, scores = yolo_det(frame, human_model, reso=det_dim, confidence=args.thred_score)
 

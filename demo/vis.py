@@ -25,6 +25,12 @@ plt.switch_backend('agg')
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
+import re
+def atoi(text):
+    return int(text) if text.isdigit() else text
+def natural_keys(text):
+    return [atoi(c) for c in re.split(r'(\d+)', text)]
+
 def show2Dpose(kps, img):
     connections = [[0, 1], [1, 2], [2, 3], [0, 4], [4, 5],
                    [5, 6], [0, 7], [7, 8], [8, 9], [9, 10],
@@ -139,7 +145,7 @@ def get_pose3D(video_path, output_dir):
 
     model_dict = model.state_dict()
     # Put the pretrained model of PoseFormerV2 in 'checkpoint/']
-    model_path = sorted(glob.glob(os.path.join(args.previous_dir, '27_243_45.2.bin')))[0]
+    model_path = 'demo/lib/checkpoint/27_243_45.2.bin' #sorted(glob.glob(os.path.join(args.previous_dir, '27_243_45.2.bin')))[0]
 
     pre_dict = torch.load(model_path)
     model.load_state_dict(pre_dict['model_pos'], strict=True)
@@ -149,17 +155,28 @@ def get_pose3D(video_path, output_dir):
     ## input
     keypoints = np.load(output_dir + 'input_2D/keypoints.npz', allow_pickle=True)['reconstruction']
 
-    cap = cv2.VideoCapture(video_path)
-    video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if '.mp4' in video_path:
+        cap = cv2.VideoCapture(video_path)
+        video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    else:
+        from os import listdir
+        video_frames = [f for f in listdir(video_path)]
+        video_frames.sort(key=natural_keys)
+        video_length = len(video_frames)
 
     ## 3D
     print('\nGenerating 3D pose...')
     for i in tqdm(range(video_length)):
-        ret, img = cap.read()
+        if '.mp4' in video_path:
+            ret, img = cap.read()
+        else:
+            img = cv2.imread(os.path.join(video_path, video_frames[i]))
+            img = cv2.resize(img, (224, 224))
+
         if img is None:
             continue
         img_size = img.shape
-
+        
         ## input frames
         start = max(0, i - args.pad)
         end =  min(i + args.pad, len(keypoints[0])-1)
@@ -285,7 +302,10 @@ if __name__ == "__main__":
 
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
-    video_path = './demo/video/' + args.video
+    if '.mp4' in args.video:
+        video_path = './demo/video/' + args.video
+    else:
+        video_path = './demo/cropped_images_new/' + args.video
     video_name = video_path.split('/')[-1].split('.')[0]
     output_dir = './demo/output/' + video_name + '/'
 
