@@ -18,7 +18,6 @@ from common.camera import *
 
 import matplotlib
 import matplotlib.pyplot as plt 
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.gridspec as gridspec
 
 plt.switch_backend('agg')
@@ -76,7 +75,7 @@ def show3Dpose(vals, ax):
     ax.set_xlim3d([-RADIUS+xroot, RADIUS+xroot])
     ax.set_ylim3d([-RADIUS+yroot, RADIUS+yroot])
     ax.set_zlim3d([-RADIUS_Z+zroot, RADIUS_Z+zroot])
-    ax.set_aspect('auto') # works fine in matplotlib==2.2.2
+    ax.set_aspect('auto')
 
     white = (1.0, 1.0, 1.0, 0.0)
     ax.xaxis.set_pane_color(white) 
@@ -134,20 +133,22 @@ def showimage(ax, img):
 
 def get_pose3D(video_path, output_dir):
     args, _ = argparse.ArgumentParser().parse_known_args()
-    args.embed_dim_ratio, args.depth, args.frames = 32, 4, 243
-    args.number_of_kept_frames, args.number_of_kept_coeffs = 27, 27
+    args.embed_dim_ratio, args.depth, args.frames = 32, 4, 27 #args.embed_dim_ratio, args.depth, args.frames = 32, 4, 243
+    args.number_of_kept_frames, args.number_of_kept_coeffs = 3, 3 #args.number_of_kept_frames, args.number_of_kept_coeffs = 27, 27
     args.pad = (args.frames - 1) // 2
     args.previous_dir = 'checkpoint/'
     args.n_joints, args.out_joints = 17, 17
 
     ## Reload 
-    model = nn.DataParallel(Model(args=args)).cuda()
+    model = nn.DataParallel(Model(args={'embed_dim_ratio': 32, 'depth': 4, 'frames': 27, 'number_of_kept_frames': 3, 'number_of_kept_coeffs': 3})).cuda()
 
     model_dict = model.state_dict()
     # Put the pretrained model of PoseFormerV2 in 'checkpoint/']
-    model_path = 'demo/lib/checkpoint/27_243_45.2.bin' #sorted(glob.glob(os.path.join(args.previous_dir, '27_243_45.2.bin')))[0]
+    model_path = '/mnt/disk2/danieljung0121/LIFT/models/PoseFormerV2/released_checkpoints/3_27_47.9.bin'
+    # model_path = 'demo/lib/checkpoint/27_243_45.2.bin' #sorted(glob.glob(os.path.join(args.previous_dir, '27_243_45.2.bin')))[0]
 
     pre_dict = torch.load(model_path)
+    # import pdb; pdb.set_trace()
     model.load_state_dict(pre_dict['model_pos'], strict=True)
 
     model.eval()
@@ -171,7 +172,6 @@ def get_pose3D(video_path, output_dir):
             ret, img = cap.read()
         else:
             img = cv2.imread(os.path.join(video_path, video_frames[i]))
-            img = cv2.resize(img, (224, 224))
 
         if img is None:
             continue
@@ -195,7 +195,6 @@ def get_pose3D(video_path, output_dir):
         joints_left =  [4, 5, 6, 11, 12, 13]
         joints_right = [1, 2, 3, 14, 15, 16]
 
-        # input_2D_no += np.random.normal(loc=0.0, scale=5, size=input_2D_no.shape)
         input_2D = normalize_screen_coordinates(input_2D_no, w=img_size[1], h=img_size[0])  
 
         input_2D_aug = copy.deepcopy(input_2D)
@@ -231,18 +230,23 @@ def get_pose3D(video_path, output_dir):
         input_2D_no = input_2D_no[args.pad]
 
         ## 2D
-        image = show2Dpose(input_2D_no, copy.deepcopy(img))
 
+        image = show2Dpose(input_2D_no, copy.deepcopy(img))
+        image_white = show2Dpose(input_2D_no, copy.deepcopy(np.ones_like(img)*255))
         output_dir_2D = output_dir +'pose2D/'
+        output_dir_2D_white = output_dir +'pose2D_white/'
         os.makedirs(output_dir_2D, exist_ok=True)
+        os.makedirs(output_dir_2D_white, exist_ok=True)
         cv2.imwrite(output_dir_2D + str(('%04d'% i)) + '_2D.png', image)
+        cv2.imwrite(output_dir_2D_white + str(('%04d'% i)) + '_2D.png', image_white)
 
         ## 3D
         fig = plt.figure(figsize=(9.6, 5.4))
         gs = gridspec.GridSpec(1, 1)
         gs.update(wspace=-0.00, hspace=0.05) 
         ax = plt.subplot(gs[0], projection='3d')
-        show3Dpose( post_out, ax)
+        show3Dpose(post_out, ax)
+        import pdb; pdb.set_trace()
 
         output_dir_3D = output_dir +'pose3D/'
         os.makedirs(output_dir_3D, exist_ok=True)
@@ -283,14 +287,9 @@ def get_pose3D(video_path, output_dir):
         ## save
         output_dir_pose = output_dir +'pose/'
         os.makedirs(output_dir_pose, exist_ok=True)
-        # plt.axis('off')
-        # plt.gcf().set_size_inches(512 / 100, 512 / 100)
-        # plt.gca().xaxis.set_major_locator(plt.NullLocator())
-        # plt.gca().yaxis.set_major_locator(plt.NullLocator())
         plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
         plt.margins(0, 0)
         plt.savefig(output_dir_pose + str(('%04d'% i)) + '_pose.png', dpi=200, bbox_inches = 'tight')
-        # plt.savefig(output_dir_pose + str(('%04d'% i)) + '_pose.pdf', dpi=200, bbox_inches = 'tight')
         plt.clf()
         plt.close(ｆig)
 
@@ -305,13 +304,13 @@ if __name__ == "__main__":
     if '.mp4' in args.video:
         video_path = './demo/video/' + args.video
     else:
-        video_path = './demo/cropped_images_new/' + args.video
+        video_path = './demo/vis_predict_actions_image/' + args.video
     video_name = video_path.split('/')[-1].split('.')[0]
-    output_dir = './demo/output/' + video_name + '/'
+    output_dir = './demo/output3/' + video_name + '/'
 
     get_pose2D(video_path, output_dir)
-    get_pose3D(video_path, output_dir)
-    img2video(video_path, output_dir)
+    # get_pose3D(video_path, output_dir)
+    # img2video(video_path, output_dir)
     print('Generating demo successful!')
 
 

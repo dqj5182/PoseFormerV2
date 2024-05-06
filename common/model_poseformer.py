@@ -152,12 +152,12 @@ class PoseTransformerV2(nn.Module):
         super().__init__()
 
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
-        embed_dim_ratio = args.embed_dim_ratio
-        depth = args.depth
+        embed_dim_ratio = args['embed_dim_ratio']
+        depth = args['depth']
         embed_dim = embed_dim_ratio * num_joints   #### temporal embed_dim is num_joints * spatial embedding dim ratio
         out_dim = num_joints * 3    #### output dimension is num_joints * 3
-        self.num_frame_kept = args.number_of_kept_frames
-        self.num_coeff_kept = args.number_of_kept_coeffs if args.number_of_kept_coeffs else self.num_frame_kept
+        self.num_frame_kept = args['number_of_kept_frames']
+        self.num_coeff_kept = args['number_of_kept_coeffs'] if args['number_of_kept_coeffs'] else self.num_frame_kept
 
         ### spatial patch embedding
         self.Joint_embedding = nn.Linear(in_chans, embed_dim_ratio)

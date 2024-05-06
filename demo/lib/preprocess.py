@@ -28,10 +28,6 @@ def coco_h36m(keypoints):
     keypoints_h36m[:, 7, 0] += 2*(keypoints_h36m[:, 7, 0] - np.mean(keypoints_h36m[:, [0, 8], 0], axis=1, dtype=np.float32))
     keypoints_h36m[:, 8, 1] -= (np.mean(keypoints[:, 1:3, 1], axis=1, dtype=np.float32) - keypoints[:, 0, 1])*2/3
 
-    # half body: the joint of ankle and knee equal to hip
-    # keypoints_h36m[:, [2, 3]] = keypoints_h36m[:, [1, 1]]
-    # keypoints_h36m[:, [5, 6]] = keypoints_h36m[:, [4, 4]]
-
     valid_frames = np.where(np.sum(keypoints_h36m.reshape(-1, 34), axis=1) != 0)[0]
     
     return keypoints_h36m, valid_frames

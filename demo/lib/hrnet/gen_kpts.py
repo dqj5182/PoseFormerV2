@@ -122,10 +122,12 @@ def gen_video_kpts(video, det_dim=416, num_peroson=1, gen_output=False):
                 continue
         else:
             frame = cv2.imread(osp.join(video, video_frames[ii]))
-            frame = cv2.resize(frame, (224, 224))
+            # frame = cv2.resize(frame, (224, 224))
             # cv2.imwrite('debug.png', frame)
 
         bboxs, scores = yolo_det(frame, human_model, reso=det_dim, confidence=args.thred_score)
+        bboxs = np.array([[0, 0, frame.shape[1], frame.shape[0]]])
+        scores = np.array([[1.0]])
 
         if bboxs is None or not bboxs.any():
             print('No person detected!')

@@ -175,6 +175,7 @@ def get_pose3D(video_path, output_dir):
 
             input_2D_no = np.pad(input_2D_no, ((left_pad, right_pad), (0, 0), (0, 0)), 'edge')
         
+        import pdb; pdb.set_trace()
         joints_left =  [4, 5, 6, 11, 12, 13]
         joints_right = [1, 2, 3, 14, 15, 16]
 
